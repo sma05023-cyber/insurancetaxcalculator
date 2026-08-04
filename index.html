@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4대 사회보험 및 세액 계산기</title>
+  
+  <!-- Pretendard 웹 폰트 -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <!-- SheetJS (엑셀 파일 생성 및 읽기용) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --google-blue: #1a73e8;
+      --google-blue-hover: #1557b0;
+      --navy-main: #2b3a4a;
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-sub: #64748b;
+      --border-color: #cbd5e1;
+      --red-main: #dc2626;
+      --red-bg: #fff5f5;
+      --red-border: #fca5a5;
+      --gold-color: #d97706;
+      --blue-box-bg: #eff6ff;
+      --blue-box-border: #bfdbfe;
+      --blue-box-text: #1e40af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 40px 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .page-container {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    /* 헤더 */
+    .header-area {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .header-title h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.5px; }
+    .header-title p { font-size: 0.95rem; color: var(--text-sub); margin-top: 8px; }
+
+    /* 메인 카드 */
+    .calc-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      padding: 32px 40px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    }
+    .card-title { text-align: center; font-size: 1.35rem; font-weight: 700; margin-bottom: 24px; }
+
+    /* 탭(Tab) UI */
+    .tab-container { display: flex; gap: 8px; margin-bottom: 28px; }
+    .tab-btn { flex: 1; padding: 14px; font-size: 1rem; font-weight: 600; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; border: 1px solid var(--border-color); background: #ffffff; color: var(--text-sub); }
+    .tab-btn.active { background: var(--navy-main); color: #ffffff; border-color: var(--navy-main); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* 폼 요소 */
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; }
+    .label-sub { font-size: 0.8rem; font-weight: 400; color: var(--text-sub); }
+    .form-input, .form-select { width: 100%; padding: 12px 14px; font-size: 1rem; background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; outline: none; transition: 0.2s; cursor: pointer; }
+    .form-input:focus, .form-select:focus { background-color: #ffffff; border-color: var(--google-blue); box-shadow: 0 0 0 3px rgba(26,115,232,0.15); cursor: text; }
+    
+    .input-with-unit { display: flex; align-items: center; }
+    .input-with-unit .form-input { border-radius: 8px 0 0 8px; font-weight: 500; text-align: right; }
+    .unit-box { background: #f8fafc; border: 1px solid var(--border-color); border-left: none; border-radius: 0 8px 8px 0; padding: 12px 16px; font-weight: 600; color: var(--text-sub); }
+
+    .flex-row { display: flex; gap: 16px; }
+    .flex-1 { flex: 1; }
+
+    optgroup { font-weight: 700; color: var(--google-blue); }
+
+    /* 파란색 안내 박스 (공통 스타일) */
+    .blue-notice-box {
+      background-color: var(--blue-box-bg);
+      border: 1px solid var(--blue-box-border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin: 20px 0;
+    }
+    .blue-notice-box ul { list-style: none; padding-left: 0; margin: 0; }
+    .blue-notice-box li { color: var(--blue-box-text); font-size: 0.9rem; margin-bottom: 8px; line-height: 1.5; }
+    .blue-notice-box li:last-child { margin-bottom: 0; }
+    .blue-notice-box a { color: var(--google-blue); font-weight: 700; text-decoration: underline; }
+    .blue-notice-box .path-text { display: block; font-size: 0.8rem; color: #3b82f6; margin-top: 4px; }
+
+    /* 체크박스 & 저장 버튼 */
+    .checkbox-card { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 14px 16px; margin-bottom: 24px; }
+    .checkbox-label { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; font-weight: 500; cursor: pointer; }
+    .checkbox-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--navy-main); cursor: pointer; }
+    
+    .save-rate-wrap { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    .btn-save { background: #ffffff; border: 1px solid var(--text-main); border-radius: 6px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .btn-save:hover { background: #f1f5f9; }
+
+    /* 계산하기 및 초기화 버튼 */
+    .btn-calc { width: 100%; background-color: var(--google-blue); color: #ffffff; font-size: 1.15rem; font-weight: 700; padding: 16px; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; margin-top: 8px; box-shadow: 0 4px 6px rgba(26, 115, 232, 0.2); }
+    .btn-calc:hover { background-color: var(--google-blue-hover); }
+    
+    .btn-reset { display: inline-block; background-color: #f1f5f9; border: 1px solid var(--border-color); color: var(--text-sub); padding: 10px 24px; border-radius: 6px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: 0.2s; }
+    .btn-reset:hover { background-color: #e2e8f0; color: var(--text-main); }
+
+    /* 결과 영역 */
+    .result-wrapper { display: none; margin-top: 40px; animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* 테이블 */
+    .table-container { border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); }
+    table { width: 100%; border-collapse: collapse; text-align: right; font-size: 0.95rem; }
+    th { background-color: var(--navy-main); color: #ffffff; padding: 12px; font-weight: 600; text-align: center; border-right: 1px solid rgba(255,255,255,0.15); }
+    th:last-child { border-right: none; }
+    td { padding: 12px; border-bottom: 1px solid var(--border-color); }
+    td.category { text-align: center; font-weight: 600; background-color: #f8fafc; border-right: 1px solid var(--border-color); }
+    td.value { border-right: 1px solid var(--border-color); }
+    tr.total-row { background-color: #f1f5f9; font-weight: 700; font-size: 1.05rem; }
+    tr.total-row td.worker-total { color: var(--google-blue); }
+    .none-text { color: #94a3b8; font-weight: 400; }
+
+    /* 실수령액 상자 */
+    .net-pay-card { margin-top: 24px; padding: 20px; background-color: var(--red-bg); border: 1.5px solid var(--red-border); border-radius: 12px; text-align: center; }
+    .net-pay-title { font-size: 1.35rem; font-weight: 700; color: var(--red-main); }
+    .net-pay-subtitle { font-size: 0.85rem; color: #991b1b; margin-top: 6px; }
+
+    /* 산출 내역 (디테일) 영역 */
+    .detail-section { margin-top: 32px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; }
+    .detail-box-top { border-bottom: 1px dashed var(--border-color); padding-bottom: 20px; margin-bottom: 20px; }
+    .detail-title { font-size: 1.1rem; font-weight: 700; color: var(--navy-main); margin-bottom: 16px; }
+    .detail-list { list-style: disc; padding-left: 20px; font-size: 0.9rem; line-height: 1.8; color: var(--text-main); }
+    .detail-list li strong { font-weight: 600; }
+    .detail-list li .highlight { color: var(--gold-color); font-weight: 600; }
+    
+    .calc-step-item { margin-bottom: 16px; }
+    .calc-step-item:last-child { margin-bottom: 0; }
+    .calc-step-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
+    .calc-step-line { font-size: 0.9rem; color: var(--text-sub); margin-bottom: 4px; padding-left: 8px; }
+    .calc-step-line strong { color: var(--google-blue); font-weight: 700; }
+
+    /* 엑셀 탭 전용 */
+    .excel-guide-box { background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+    .excel-guide-box h3 { font-size: 1rem; color: var(--navy-main); margin-bottom: 10px; }
+    .excel-guide-box ol { padding-left: 20px; font-size: 0.9rem; line-height: 1.7; color: var(--text-main); }
+    .btn-download { display: block; background: #fff; border: 1.5px solid var(--google-blue); color: var(--google-blue); padding: 14px; border-radius: 8px; font-weight: 600; text-align: center; text-decoration: none; margin-bottom: 20px; transition: 0.2s; cursor: pointer; width: 100%; font-size: 1rem; }
+    .btn-download:hover { background: #eff6ff; }
+    .drop-zone { width: 100%; padding: 50px 20px; text-align: center; background: #fff; border: 2px dashed #cbd5e1; border-radius: 8px; color: var(--text-sub); cursor: pointer; transition: 0.2s; }
+    .drop-zone:hover { border-color: var(--google-blue); background: #f8fafc; color: var(--google-blue); }
+    .drop-zone p { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+    
+    .excel-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.85rem; white-space: nowrap; }
+    .excel-table th { background-color: var(--navy-main); color: #fff; padding: 10px 6px; font-weight: 600; border: 1px solid rgba(255,255,255,0.2); line-height: 1.4; }
+    .excel-table td { padding: 10px; border: 1px solid var(--border-color); vertical-align: middle; text-align: right; }
+    .val-worker { color: var(--google-blue); font-weight: 700; padding-bottom: 4px; border-bottom: 1px dashed #e2e8f0; margin-bottom: 4px; }
+    .val-employer { color: var(--text-main); font-weight: 500; }
+    .val-none { color: #94a3b8; padding-bottom: 4px; border-bottom: 1px dashed #e2e8f0; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="page-container">
+    <header class="header-area">
+      <div class="header-title">
+        <h1>4대 사회보험 및 세액 계산기</h1>
+        <p>일용근로자 세액부터 정규직 4대보험, 엑셀 대량 계산까지 지원합니다.</p>
+      </div>
+    </header>
+
+    <main class="calc-card">
+      <h2 class="card-title">보험료 계산</h2>
+
+      <!-- 탭 버튼 -->
+      <div class="tab-container">
+        <button type="button" id="btn-tab1" class="tab-btn active" onclick="switchTab('tab1')">일용근로 세액계산</button>
+        <button type="button" id="btn-tab2" class="tab-btn" onclick="switchTab('tab2')">1명 계산하기 (단건)</button>
+        <button type="button" id="btn-tab3" class="tab-btn" onclick="switchTab('tab3')">엑셀 대량 계산</button>
+      </div>
+
+      <!-- ================= 탭 1: 일용근로 세액계산 ================= -->
+      <div id="content-tab1" class="tab-content active">
+        
+        <div class="form-group">
+          <label class="form-label">연령 (고용보험 기준)</label>
+          <select id="dailyAge" class="form-select">
+            <option value="under65">만 65세 미만 (고용보험 적용)</option>
+            <option value="over65">만 65세 이상 (고용보험 면제)</option>
+          </select>
+        </div>
+
+        <div class="flex-row">
+          <div class="form-group flex-1">
+            <label class="form-label">지급일수</label>
+            <div class="input-with-unit">
+              <input type="text" id="dailyDays" class="form-input num-input enter-daily" placeholder="예: 5">
+              <span class="unit-box">일</span>
+            </div>
+          </div>
+          <div class="form-group flex-1">
+            <label class="form-label">지급액 (총 지급액)</label>
+            <div class="input-with-unit">
+              <input type="text" id="dailyTotalPay" class="form-input num-input enter-daily" placeholder="예: 1,000,000">
+              <span class="unit-box">원</span>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-calc" onclick="calcDailyTax()">계산하기</button>
+
+        <div id="resultWrap_daily" class="result-wrapper">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr><th style="width: 30%;">구분</th><th style="width: 70%;">산출 금액</th></tr>
+              </thead>
+              <tbody id="tbody-dailyTax"></tbody>
+            </table>
+          </div>
+          <div class="net-pay-card">
+            <div class="net-pay-title" id="netPay-dailyTax">예상 실수령액: 0원</div>
+            <div class="net-pay-subtitle">(지급액 - 세액 합계 - 고용보험료)</div>
+          </div>
+          <div class="detail-section" id="detail-dailyTax"></div>
+        </div>
+      </div>
+
+      <!-- ================= 탭 2: 1명 계산 (단건) ================= -->
+      <div id="content-tab2" class="tab-content">
+        <div class="form-group">
+          <label class="form-label">기준 연도 (공통)</label>
+          <select class="form-select" id="calcYear">
+            <option value="2026" selected>2026년</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">이름</label>
+          <input type="text" id="singleName" class="form-input enter-single" placeholder="예: 홍길동">
+        </div>
+        <div class="form-group">
+          <label class="form-label">보수월액</label>
+          <div class="input-with-unit">
+            <input type="text" id="singleWage" class="form-input num-input enter-single" placeholder="예: 3,000,000">
+            <span class="unit-box">원</span>
+          </div>
+        </div>
+
+        <div class="checkbox-card">
+          <label class="checkbox-label">
+            <input type="checkbox" id="singleAge60">
+            <span>만 60세 이상 (체크 시 국민연금 면제)</span>
+          </label>
+        </div>
+
+        <!-- 산재요율 드롭다운 + 수기입력 -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">산재보험 요율 (기관 부담)</label>
+          <select id="sanjaeSelect_single" class="form-select" onchange="handleSanjaeChange('single')">
+            <optgroup label="🏢 서비스 및 기타 사업">
+              <option value="0.009" selected>국가 및 지방자치단체의 사업 (0.9%)</option>
+              <option value="0.008">도소매·음식·숙박업 (0.8%)</option>
+              <option value="0.008">시설관리 및 사업지원 서비스업 (0.8%)</option>
+              <option value="0.008">기타의 각종사업 (0.8%)</option>
+              <option value="0.007">부동산 및 임대업 (0.7%)</option>
+              <option value="0.006">전문·보건·교육·여가관련 서비스업 (0.6%)</option>
+              <option value="0.005">금융 및 보험업 (0.5%)</option>
+            </optgroup>
+            <optgroup label="🏗️ 건설 및 1차 산업">
+              <option value="0.185">석탄광업 및 채석업 (18.5%)</option>
+              <option value="0.058">임업 (5.8%)</option>
+              <option value="0.057">석회석·금속·비금속·기타광업 (5.7%)</option>
+              <option value="0.035">건설업 (3.5%)</option>
+              <option value="0.027">어업 (2.7%)</option>
+              <option value="0.020">농업 (2.0%)</option>
+            </optgroup>
+            <optgroup label="🏭 제조업">
+              <option value="0.024">선박건조 및 수리업 (2.4%)</option>
+              <option value="0.020">목재 및 종이제품 제조업 (2.0%)</option>
+              <option value="0.016">식료품 제조업 (1.6%)</option>
+              <option value="0.013">화학 및 고무제품 제조업 (1.3%)</option>
+              <option value="0.013">기계기구·금속·비금속광물제품 제조업 (1.3%)</option>
+              <option value="0.012">수제품 및 기타제품 제조업 (1.2%)</option>
+              <option value="0.011">섬유 및 섬유제품 제조업 (1.1%)</option>
+              <option value="0.010">금속제련업 (1.0%)</option>
+              <option value="0.009">출판·인쇄·제본업 (0.9%)</option>
+              <option value="0.007">의약품·화장품·연탄·석유제품 제조업 (0.7%)</option>
+              <option value="0.006">전기기계기구·정밀기구·전자제품 제조업 (0.6%)</option>
+            </optgroup>
+            <optgroup label="🚚 운수·창고·통신·인프라">
+              <option value="0.018">육상 및 수상운수업 (1.8%)</option>
+              <option value="0.009">통신업 (0.9%)</option>
+              <option value="0.008">철도·항공·창고·운수관련서비스업 (0.8%)</option>
+              <option value="0.007">전기·가스·증기·수도사업 (0.7%)</option>
+            </optgroup>
+            <optgroup label="✍️ 직접 입력">
+              <option value="manual">✏️ 직접 수기입력</option>
+            </optgroup>
+          </select>
+          
+          <div id="manualWrap_single" style="display: none; margin-top: 12px;">
+            <div class="input-with-unit">
+              <input type="text" id="sanjaeInput_single" class="form-input num-input" placeholder="예: 0.9">
+              <span class="unit-box">%</span>
+            </div>
+          </div>
+
+          <div class="save-rate-wrap">
+            <span class="label-sub">* 출퇴근재해요율(0.06%)은 계산 시 자동 합산됩니다.</span>
+            <button type="button" class="btn-save" onclick="saveSanjaeRate('single')">산재보험 요율 저장</button>
+          </div>
+        </div>
+
+        <!-- 파란색 안내 박스 -->
+        <div class="blue-notice-box">
+          <ul>
+            <li>※ 매년 <strong>사업 업종별 보험요율 세분화</strong>하여 적용</li>
+            <li>※ <a href="http://www.comwel.or.kr/comwel/paym/paym/tari.jsp" target="_blank">고용산재토탈서비스 홈페이지</a>에서 확인할 수 있습니다.
+                <span class="path-text">(경로: 사업장메뉴 &gt; 정보조회 &gt; 보험료정보조회 &gt; 사업장요율조회)</span>
+            </li>
+          </ul>
+        </div>
+
+        <button type="button" class="btn-calc" onclick="calcSingle()">계산하기</button>
+
+        <div id="resultWrap_single" class="result-wrapper">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr><th style="width: 25%;">구분</th><th style="width: 37.5%;">근로자 부담</th><th style="width: 37.5%;">기관(학교) 부담</th></tr>
+              </thead>
+              <tbody id="tbody-single"></tbody>
+            </table>
+          </div>
+          <div class="net-pay-card">
+            <div class="net-pay-title" id="netPay-single">예상 실수령액: 0원</div>
+            <div class="net-pay-subtitle">(보수월액 - 근로자부담금 총액, 소득세/지방소득세 별도)</div>
+          </div>
+          <div class="detail-section" id="detail-single"></div>
+        </div>
+      </div>
+
+      <!-- ================= 탭 3: 엑셀 대량 계산 ================= -->
+      <div id="content-tab3" class="tab-content">
+        <div class="form-group">
+          <label class="form-label">기본 산재보험 요율 설정</label>
+          <select id="sanjaeSelect_excel" class="form-select" onchange="handleSanjaeChange('excel')">
+            <optgroup label="🏢 서비스 및 기타 사업">
+              <option value="0.009" selected>국가 및 지방자치단체의 사업 (0.9%)</option>
+              <option value="0.008">도소매·음식·숙박업 (0.8%)</option>
+              <option value="0.008">시설관리 및 사업지원 서비스업 (0.8%)</option>
+              <option value="0.008">기타의 각종사업 (0.8%)</option>
+              <option value="0.007">부동산 및 임대업 (0.7%)</option>
+              <option value="0.006">전문·보건·교육·여가관련 서비스업 (0.6%)</option>
+              <option value="0.005">금융 및 보험업 (0.5%)</option>
+            </optgroup>
+            <optgroup label="🏗️ 건설 및 1차 산업">
+              <option value="0.185">석탄광업 및 채석업 (18.5%)</option>
+              <option value="0.058">임업 (5.8%)</option>
+              <option value="0.057">석회석·금속·비금속·기타광업 (5.7%)</option>
+              <option value="0.035">건설업 (3.5%)</option>
+              <option value="0.027">어업 (2.7%)</option>
+              <option value="0.020">농업 (2.0%)</option>
+            </optgroup>
+            <optgroup label="🏭 제조업">
+              <option value="0.024">선박건조 및 수리업 (2.4%)</option>
+              <option value="0.020">목재 및 종이제품 제조업 (2.0%)</option>
+              <option value="0.016">식료품 제조업 (1.6%)</option>
+              <option value="0.013">화학 및 고무제품 제조업 (1.3%)</option>
+              <option value="0.013">기계기구·금속·비금속광물제품 제조업 (1.3%)</option>
+              <option value="0.012">수제품 및 기타제품 제조업 (1.2%)</option>
+              <option value="0.011">섬유 및 섬유제품 제조업 (1.1%)</option>
+              <option value="0.010">금속제련업 (1.0%)</option>
+              <option value="0.009">출판·인쇄·제본업 (0.9%)</option>
+              <option value="0.007">의약품·화장품·연탄·석유제품 제조업 (0.7%)</option>
+              <option value="0.006">전기기계기구·정밀기구·전자제품 제조업 (0.6%)</option>
+            </optgroup>
+            <optgroup label="🚚 운수·창고·통신·인프라">
+              <option value="0.018">육상 및 수상운수업 (1.8%)</option>
+              <option value="0.009">통신업 (0.9%)</option>
+              <option value="0.008">철도·항공·창고·운수관련서비스업 (0.8%)</option>
+              <option value="0.007">전기·가스·증기·수도사업 (0.7%)</option>
+            </optgroup>
+            <optgroup label="✍️ 직접 입력">
+              <option value="manual">✏️ 직접 수기입력</option>
+            </optgroup>
+          </select>
+          
+          <div id="manualWrap_excel" style="display: none; margin-top: 12px;">
+            <div class="input-with-unit">
+              <input type="text" id="sanjaeInput_excel" class="form-input num-input" placeholder="예: 0.9">
+              <span class="unit-box">%</span>
+            </div>
+          </div>
+
+          <div class="save-rate-wrap">
+            <span class="label-sub">* 엑셀 내 '산재요율' 칸이 비어있을 경우 이 기본 요율(+출퇴근 0.06%)이 적용됩니다.</span>
+            <button type="button" class="btn-save" onclick="saveSanjaeRate('excel')">산재보험 요율 저장</button>
+          </div>
+        </div>
+
+        <div class="excel-guide-box">
+          <h3 style="font-size: 1rem; color: var(--navy-main); margin-bottom: 10px;">📌 엑셀 대량 계산 사용 방법</h3>
+          <ol style="padding-left: 20px; font-size: 0.9rem; line-height: 1.7; color: var(--text-main);">
+            <li>아래 버튼을 눌러 <strong>업로드 전용 엑셀 양식</strong>을 다운로드 합니다.</li>
+            <li>엑셀 파일 양식에 맞게 작성 후 저장합니다.</li>
+            <li>작성한 엑셀 파일을 아래 업로드 영역에 첨부합니다.</li>
+            <li>산재요율 칸이 비어 있으면 위에서 설정한 기본 산재보험 요율을 사용합니다.</li>
+          </ol>
+        </div>
+
+        <!-- 엑셀 양식 다운로드 (JS로 생성) -->
+        <button type="button" class="btn-download" onclick="downloadExcelTemplate()">
+          📥 업로드 전용 엑셀 양식 다운로드
+        </button>
+
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileUpload').click()">
+          <p>📂 작성한 엑셀 파일을 이 곳으로 드래그하거나 클릭하여 업로드하세요.</p>
+          <span>지원 형식: .xlsx, .xls</span>
+          <input type="file" id="fileUpload" accept=".xlsx, .xls" style="display: none;">
+        </div>
+
+        <!-- 엑셀 결과 -->
+        <div id="excelResultArea" class="result-wrapper" style="margin-top: 40px;">
+          <h3 style="margin-bottom: 16px; font-weight: 700; color: var(--navy-main); font-size: 1.1rem;">📊 대량 계산 결과</h3>
+          <div style="overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-color);">
+            <table class="excel-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="width: 70px;">이름</th>
+                  <th rowspan="2" style="width: 90px;">보수월액</th>
+                  <th>건강보험</th><th>장기요양</th><th>국민연금</th><th>고용(실업)</th><th>고용(직능)</th><th>산재보험</th>
+                  <th rowspan="2" style="width: 100px;">예상 실수령액</th>
+                </tr>
+                <tr>
+                  <th style="font-size: 0.75rem; background:#3b4b5e; font-weight:400;"><span style="color:#93c5fd">개인</span> / 사업주</th>
+                  <th style="font-size: 0.75rem; background:#3b4b5e; font-weight:400;"><span style="color:#93c5fd">개인</span> / 사업주</th>
+                  <th style="font-size: 0.75rem; background:#3b4b5e; font-weight:400;"><span style="color:#93c5fd">개인</span> / 사업주</th>
+                  <th style="font-size: 0.75rem; background:#3b4b5e; font-weight:400;"><span style="color:#93c5fd">개인</span> / 사업주</th>
+                  <th style="font-size: 0.75rem; background:#3b4b5e; font-weight:400;"><span style="color:#94a3b8">-</span> / 사업주</th>
+                  <th style="font-size: 0.75rem; background:#3b4b5e; font-weight:400;"><span style="color:#94a3b8">-</span> / 사업주</th>
+                </tr>
+              </thead>
+              <tbody id="excelTableBody"></tbody>
+            </table>
+          </div>
+          <!-- 엑셀 탭 초기화 버튼 추가 -->
+          <div style="text-align: center; margin-top: 24px;">
+            <button type="button" class="btn-reset" onclick="resetExcel()">초기화</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    const RATES = { health: 0.03595, care: 0.1314, pension: 0.0475, empUnemp: 0.009, empJob: 0.0085, commute: 0.0006 };
+
+    // 1. 탭 전환
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById('btn-' + tabId).classList.add('active');
+      document.getElementById('content-' + tabId).classList.add('active');
+    }
+
+    // 2. 산재요율 드롭다운 + 수기입력 제어 및 동기화
+    function handleSanjaeChange(tabType) {
+      const select = document.getElementById('sanjaeSelect_' + tabType);
+      const wrap = document.getElementById('manualWrap_' + tabType);
+      if (select.value === 'manual') {
+        wrap.style.display = 'block';
+      } else {
+        wrap.style.display = 'none';
+      }
+    }
+
+    function getSanjaeRate(tabType) {
+      const select = document.getElementById('sanjaeSelect_' + tabType);
+      if (select.value === 'manual') {
+        return parseFloat(document.getElementById('sanjaeInput_' + tabType).value) || 0;
+      }
+      return parseFloat(select.value) * 100 || 0; 
+    }
+
+    function saveSanjaeRate(tabType) {
+      const select = document.getElementById('sanjaeSelect_' + tabType);
+      const isManual = select.value === 'manual';
+      let valToSave = '';
+
+      if (isManual) {
+        valToSave = document.getElementById('sanjaeInput_' + tabType).value;
+        if(!valToSave) { alert('수기입력할 요율을 입력해주세요.'); return; }
+        localStorage.setItem('savedSanjaeType', 'manual');
+        localStorage.setItem('savedSanjaeVal', valToSave);
+      } else {
+        valToSave = select.value;
+        localStorage.setItem('savedSanjaeType', 'select');
+        localStorage.setItem('savedSanjaeVal', valToSave);
+      }
+
+      syncSanjaeAllTabs();
+      
+      const displayRate = isManual ? valToSave : (parseFloat(valToSave)*100).toFixed(1);
+      alert('산재보험 요율이 (' + displayRate + '%)로 모든 탭에 공통 저장되었습니다.\n*계산 시 출퇴근재해(0.06%) 자동 합산');
+    }
+
+    function syncSanjaeAllTabs() {
+      const type = localStorage.getItem('savedSanjaeType') || 'select';
+      const val = localStorage.getItem('savedSanjaeVal') || '0.009';
+      
+      ['daily', 'single', 'excel'].forEach(tab => {
+        const select = document.getElementById('sanjaeSelect_' + tab);
+        const manualWrap = document.getElementById('manualWrap_' + tab);
+        const manualInput = document.getElementById('sanjaeInput_' + tab);
+        
+        if (select && manualWrap && manualInput) {
+          if (type === 'manual') {
+            select.value = 'manual';
+            manualWrap.style.display = 'block';
+            manualInput.value = val;
+          } else {
+            select.value = val;
+            manualWrap.style.display = 'none';
+          }
+        }
+      });
+    }
+
+    // 콤마 처리 및 엔터키 이벤트 (편의성 강화)
+    document.querySelectorAll('.num-input, .form-input').forEach(input => {
+      if(input.classList.contains('num-input') && !input.id.includes('Rate') && !input.id.includes('Input')) {
+        input.addEventListener('keyup', function(e) {
+          let value = e.target.value.replace(/[^0-9]/g, '');
+          e.target.value = value ? Number(value).toLocaleString('ko-KR') : '';
+        });
+      }
+      
+      input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          if (this.classList.contains('enter-daily') || this.id.includes('daily')) {
+            calcDailyTax();
+          } else if (this.classList.contains('enter-single') || this.id.includes('single')) {
+            calcSingle();
+          }
+        }
+      });
+    });
+
+    // ==========================================
+    // 3. 일용근로 세액 계산 로직
+    // ==========================================
+    function calcDailyTax() {
+      try {
+        const daysStr = String(document.getElementById('dailyDays').value).replace(/,/g, '');
+        const totalPayStr = String(document.getElementById('dailyTotalPay').value).replace(/,/g, '');
+        
+        const days = Number(daysStr) || 0;
+        const totalPay = Number(totalPayStr) || 0;
+        const age = document.getElementById('dailyAge').value; 
+        
+        if (days <= 0 || totalPay <= 0) {
+          alert('지급일수와 총 지급액을 올바르게 입력해주세요.');
+          return;
+        }
+        
+        const dailyPay = totalPay / days;
+        
+        let deduction = 0;
+        if (dailyPay < 150000) {
+          deduction = totalPay;
+        } else {
+          deduction = 150000 * days;
+        }
+        
+        const taxBase = Math.max(0, totalPay - deduction);
+        const calcTax = taxBase * 0.06;
+        const taxCredit = calcTax * 0.55;
+        
+        const exactCalcTax = Math.round(calcTax * 1000) / 1000;
+        const exactTaxCredit = Math.round(taxCredit * 1000) / 1000;
+        const exactDiff = Math.round((exactCalcTax - exactTaxCredit) * 1000) / 1000;
+        
+        const incomeTax = Math.floor(exactDiff / 10) * 10;
+        const localTax = Math.floor((incomeTax * 0.1) / 10) * 10;
+        const totalTax = incomeTax + localTax;
+        
+        const empIns = (age === 'under65') ? Math.floor((totalPay * 0.009) / 10) * 10 : 0;
+        const netPay = totalPay - totalTax - empIns;
+        
+        document.getElementById('tbody-dailyTax').innerHTML = `
+          <tr><td class="category">결정세액 (소득세)</td><td class="value">${incomeTax.toLocaleString()}원</td></tr>
+          <tr><td class="category">지방소득세</td><td class="value">${localTax.toLocaleString()}원</td></tr>
+          <tr style="background-color:#f1f5f9;"><td class="category" style="color:var(--google-blue);">세액 합계</td><td class="value" style="font-weight:700; color:var(--google-blue);">${totalTax.toLocaleString()}원</td></tr>
+          <tr><td class="category">고용보험료 (개인)</td><td class="value">${empIns.toLocaleString()}원 ${age === 'over65' ? '<span style="font-size:0.8rem;color:#94a3b8;">(만 65세 이상 면제)</span>' : ''}</td></tr>
+        `;
+        
+        document.getElementById('netPay-dailyTax').innerText = `예상 실수령액: ${netPay.toLocaleString()}원`;
+        
+        document.getElementById('detail-dailyTax').innerHTML = `
+          <div class="detail-box-top">
+            <h4 class="detail-title">일용근로소득 세액 계산 방식 (엑셀 수식 동기화)</h4>
+            <ul class="detail-list">
+              <li><strong>1일당 지급액:</strong> 총 지급액 ÷ 지급일수</li>
+              <li><strong>근로소득공제:</strong> 1일당 지급액 15만원 미만 전액 공제, 15만원 이상 시 '15만원 × 지급일수' 적용</li>
+              <li><strong>산출세액:</strong> (총 지급액 - 근로소득공제) × 세율(6%)</li>
+              <li><strong>근로소득세액공제:</strong> 산출세액의 55% 차감</li>
+              <li><strong>결정세액(소득세):</strong> 산출세액 - 세액공제액 (원단위 절사)</li>
+              <li><strong>고용보험료:</strong> 총 지급액 × 0.9% (만 65세 이상 면제, 원단위 절사)</li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="detail-title">실제 산출 내역</h4>
+            <div class="calc-step-item">
+              <div class="calc-step-title">1. 공제 및 과세표준</div>
+              <div class="calc-step-line">- 1일당 지급액: ${totalPay.toLocaleString()} ÷ ${days} = <strong>${Math.round(dailyPay).toLocaleString()}원</strong></div>
+              <div class="calc-step-line">- 근로소득공제: <strong>${deduction.toLocaleString()}원</strong></div>
+              <div class="calc-step-line">- 과세표준: ${totalPay.toLocaleString()} - ${deduction.toLocaleString()} = <strong>${taxBase.toLocaleString()}원</strong></div>
+            </div>
+            <div class="calc-step-item">
+              <div class="calc-step-title">2. 세액 산출</div>
+              <div class="calc-step-line">- 산출세액: ${taxBase.toLocaleString()} × 6% = <strong>${exactCalcTax.toLocaleString()}원</strong></div>
+              <div class="calc-step-line">- 세액공제: ${exactCalcTax.toLocaleString()} × 55% = <strong>${exactTaxCredit.toLocaleString()}원</strong></div>
+              <div class="calc-step-line">- 결정세액(소득세): ${exactCalcTax.toLocaleString()} - ${exactTaxCredit.toLocaleString()} = ${exactDiff.toLocaleString()} → <strong>${incomeTax.toLocaleString()}원</strong> (원단위 절사)</div>
+              <div class="calc-step-line">- 지방소득세: <strong>${localTax.toLocaleString()}원</strong> (소득세의 10% 원단위 절사)</div>
+            </div>
+            <div class="calc-step-item">
+              <div class="calc-step-title">3. 고용보험료 ${age === 'over65' ? '<span style="color:var(--red-main);">(연령 면제)</span>' : ''}</div>
+              <div class="calc-step-line">- 개인부담금: ${age === 'over65' ? '0원' : `${totalPay.toLocaleString()} × 0.9% → <strong>${empIns.toLocaleString()}원</strong> (원단위 절사)`}</div>
+            </div>
+          </div>
+        `;
+        
+        const resultWrap = document.getElementById('resultWrap_daily');
+        resultWrap.style.display = 'block';
+        resultWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        alert('계산 중 오류가 발생했습니다. 입력값을 확인해주세요.');
+        console.error(err);
+      }
+    }
+
+    // ==========================================
+    // 4. 단건 계산 로직 (2번 탭 - 변수명 오타 완벽 해결)
+    // ==========================================
+    function calcSingle() {
+      try {
+        const name = document.getElementById('singleName').value.trim();
+        const salaryStr = String(document.getElementById('singleWage').value).replace(/,/g, '');
+        const salary = Number(salaryStr) || 0;
+        
+        if(salary <= 0) {
+          alert('보수월액을 올바르게 입력해주세요.');
+          return;
+        }
+        
+        // ★ 변수명 sanjaeBaseRate 정상 할당
+        const sanjaeBaseRate = getSanjaeRate('single');
+        const isOver60 = document.getElementById('singleAge60').checked;
+        const namePrefix = name ? `${name} 님의 ` : '';
+        
+        const sanjaeTotalRate = (sanjaeBaseRate / 100) + RATES.commute; 
+
+        let hw = Math.floor((salary * RATES.health)/10)*10;
+        let he = hw;
+        let cw = Math.floor((hw * RATES.care)/10)*10;
+        let ce = cw;
+        
+        let pw = 0, pe = 0;
+        if(!isOver60) {
+          let pBase = Math.min(Math.max(salary, 370000), 5900000);
+          pw = Math.floor((pBase * RATES.pension)/10)*10;
+          pe = pw;
+        }
+        
+        let euw = Math.floor((salary * RATES.empUnemp)/10)*10;
+        let eue = euw;
+        let eje = Math.floor((salary * RATES.empJob)/10)*10;
+        let se = Math.floor((salary * sanjaeTotalRate)/10)*10;
+
+        const totalWorker = hw + cw + pw + euw;
+        const totalEmployer = he + ce + pe + eue + eje + se;
+        const netPay = salary - totalWorker;
+
+        document.getElementById('tbody-single').innerHTML = `
+          <tr><td class="category">건강보험</td><td class="value">${hw.toLocaleString()}원</td><td class="value">${he.toLocaleString()}원</td></tr>
+          <tr><td class="category">장기요양</td><td class="value">${cw.toLocaleString()}원</td><td class="value">${ce.toLocaleString()}원</td></tr>
+          <tr><td class="category">국민연금</td><td class="value">${isOver60 ? '<span class="none-text">면제</span>' : pw.toLocaleString()+'원'}</td><td class="value">${isOver60 ? '<span class="none-text">면제</span>' : pe.toLocaleString()+'원'}</td></tr>
+          <tr><td class="category">고용보험(실업급여)</td><td class="value">${euw.toLocaleString()}원</td><td class="value">${eue.toLocaleString()}원</td></tr>
+          <tr><td class="category">고용보험(고안,직능)</td><td class="value"><span class="none-text">없음</span></td><td class="value">${eje.toLocaleString()}원</td></tr>
+          <tr><td class="category">산재보험</td><td class="value"><span class="none-text">없음</span></td><td class="value">${se.toLocaleString()}원</td></tr>
+          <tr class="total-row"><td class="category">합 계</td><td class="value worker-total">${totalWorker.toLocaleString()}원</td><td class="value">${totalEmployer.toLocaleString()}원</td></tr>
+        `;
+        document.getElementById('netPay-single').innerText = `${namePrefix}예상 실수령액: ${netPay.toLocaleString()}원`;
+
+        const h_rateStr = (RATES.health*100).toFixed(3);
+        const c_rateStr = (RATES.care*100).toFixed(2);
+        const p_rateStr = (RATES.pension*100).toFixed(2);
+        const sj_totalStr = (sanjaeTotalRate*100).toFixed(3);
+
+        // ★ HTML 출력 템플릿 내에 있던 이전 변수명(sanjaeBase)을 (sanjaeBaseRate)로 완벽하게 픽스
+        document.getElementById('detail-single').innerHTML = `
+          <div class="detail-box-top">
+            <h4 class="detail-title">2026년도 적용 요율 및 계산 방식</h4>
+            <ul class="detail-list">
+              <li><strong>계산 원칙:</strong> 모든 보험료는 10원 미만을 버리는 <strong>원단위 절사</strong>를 적용합니다.</li>
+              <li><strong>건강보험:</strong> 보수월액 × 요율 (근로자 ${h_rateStr}%, 기관 ${h_rateStr}%)</li>
+              <li><strong>장기요양보험:</strong> <span class="highlight">산출된 건강보험료 금액</span> × 요율 (근로자 ${c_rateStr}%, 기관 ${c_rateStr}%)</li>
+              <li><strong>국민연금:</strong> 보수월액 × 요율 (근로자 ${p_rateStr}%, 기관 ${p_rateStr}%)</li>
+              <li><strong>고용보험(실업급여):</strong> 보수월액 × 요율 (근로자 0.9%, 기관 0.9%)</li>
+              <li><strong>고용보험(고안,직능):</strong> 보수월액 × 요율 (근로자 없음, 기관 0.85%)</li>
+              <li><strong>산재보험:</strong> 보수월액 × 적용요율 <span style="color:#64748b; font-size:0.85rem;">[설정요율 ${sanjaeBaseRate}% + 출퇴근 0.06%]</span> (근로자 없음, 기관 <span class="highlight">${sj_totalStr}%</span>)</li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="detail-title">실제 산출 내역 (원단위 절사 과정)</h4>
+            <div class="calc-step-item">
+              <div class="calc-step-title">1. 건강보험</div>
+              <div class="calc-step-line">- 근로자: ${salary.toLocaleString()} × ${h_rateStr}% = ${(salary*RATES.health).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${hw.toLocaleString()}원</strong></div>
+              <div class="calc-step-line">- 기 관: ${salary.toLocaleString()} × ${h_rateStr}% = ${(salary*RATES.health).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${he.toLocaleString()}원</strong></div>
+            </div>
+            <div class="calc-step-item">
+              <div class="calc-step-title">2. 장기요양보험 <span>(건강보험료 기준)</span></div>
+              <div class="calc-step-line">- 근로자: ${hw.toLocaleString()} × ${c_rateStr}% = ${(hw*RATES.care).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${cw.toLocaleString()}원</strong></div>
+              <div class="calc-step-line">- 기 관: ${he.toLocaleString()} × ${c_rateStr}% = ${(he*RATES.care).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${ce.toLocaleString()}원</strong></div>
+            </div>
+            <div class="calc-step-item">
+              <div class="calc-step-title">3. 국민연금</div>
+              ${isOver60 ? `<div class="calc-step-line">- 만 60세 이상 면제</div>` : `
+              <div class="calc-step-line">- 근로자: ${salary.toLocaleString()} × ${p_rateStr}% = ${(salary*RATES.pension).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${pw.toLocaleString()}원</strong></div>
+              <div class="calc-step-line">- 기 관: ${salary.toLocaleString()} × ${p_rateStr}% = ${(salary*RATES.pension).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${pe.toLocaleString()}원</strong></div>
+              `}
+            </div>
+            <div class="calc-step-item">
+              <div class="calc-step-title">4. 고용보험(실업급여)</div>
+              <div class="calc-step-line">- 근로자: ${salary.toLocaleString()} × 0.9% = ${(salary*RATES.empUnemp).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${euw.toLocaleString()}원</strong></div>
+              <div class="calc-step-line">- 기 관: ${salary.toLocaleString()} × 0.9% = ${(salary*RATES.empUnemp).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${eue.toLocaleString()}원</strong></div>
+            </div>
+            <div class="calc-step-item">
+              <div class="calc-step-title">5. 고용보험(고안,직능)</div>
+              <div class="calc-step-line">- 근로자: 면제</div>
+              <div class="calc-step-line">- 기 관: ${salary.toLocaleString()} × 0.85% = ${(salary*RATES.empJob).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${eje.toLocaleString()}원</strong></div>
+            </div>
+            <div class="calc-step-item">
+              <div class="calc-step-title">6. 산재보험</div>
+              <div class="calc-step-line">- 근로자: 면제</div>
+              <div class="calc-step-line">- 기 관: ${salary.toLocaleString()} × ${sj_totalStr}% = ${(salary*sanjaeTotalRate).toLocaleString(undefined,{maximumFractionDigits:2})} → <strong>${se.toLocaleString()}원</strong></div>
+            </div>
+          </div>
+        `;
+        
+        const resultWrap = document.getElementById('resultWrap_single');
+        resultWrap.style.display = 'block';
+        resultWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      } catch (err) {
+        alert('계산 중 오류가 발생했습니다. 값을 다시 확인해주세요.');
+        console.error(err);
+      }
+    }
+
+    // ==========================================
+    // 5. 엑셀 다운로드, 업로드, 초기화
+    // ==========================================
+    function downloadExcelTemplate() {
+      try {
+        const wb = XLSX.utils.book_new();
+        const ws_data = [
+          ['이름(필수)', '보수월액(숫자만 필수)', '산재요율(선택)', '만60세이상(O 입력시 연금면제)'],
+          ['홍길동', 3000000, '', 'X'],
+          ['이순신', 2500000, 0.9, 'O']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        ws['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 25 }];
+        
+        XLSX.utils.book_append_sheet(wb, ws, "업로드_양식");
+        XLSX.writeFile(wb, "4대보험_업로드_양식_2.xlsx");
+      } catch(e) {
+        alert('엑셀 양식 파일을 생성하는 중 오류가 발생했습니다.');
+      }
+    }
+
+    const dropZone = document.getElementById('dropZone');
+    const fileUpload = document.getElementById('fileUpload');
+
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = "var(--google-blue)"; });
+    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = "var(--border-color)"; });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault(); dropZone.style.borderColor = "var(--border-color)";
+      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    });
+    fileUpload.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval: ""});
+          processExcelData(json);
+        } catch(error) {
+          alert('엑셀 파일을 읽는 중 오류가 발생했습니다. 양식을 확인해주세요.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function processExcelData(data) {
+      const tbody = document.getElementById('excelTableBody');
+      const defaultSanjaeRate = getSanjaeRate('excel');
+      let html = '';
+
+      data.forEach((row, idx) => {
+        if (!row['이름(필수)'] && !row['보수월액(숫자만 필수)']) return;
+        const name = row['이름(필수)'] || `근로자${idx+1}`;
+        let salary = parseFloat(String(row['보수월액(숫자만 필수)']).replace(/,/g, ''));
+        if (isNaN(salary) || salary <= 0) salary = 0;
+        
+        let excelSanjae = parseFloat(row['산재요율(선택)']);
+        if (isNaN(excelSanjae)) excelSanjae = defaultSanjaeRate;
+        const isOver60 = String(row['만60세이상(O 입력시 연금면제)']).trim().toUpperCase() === 'O';
+
+        const hw = Math.floor((salary * RATES.health)/10)*10;
+        const cw = Math.floor((hw * RATES.care)/10)*10;
+        let pw = 0;
+        if (!isOver60) {
+          let pBase = Math.min(Math.max(salary, 370000), 5900000);
+          pw = Math.floor((pBase * RATES.pension)/10)*10;
+        }
+        const euw = Math.floor((salary * RATES.empUnemp)/10)*10;
+        const eje = Math.floor((salary * RATES.empJob)/10)*10;
+        const se = Math.floor((salary * ((excelSanjae / 100) + RATES.commute))/10)*10;
+        
+        const totalW = hw + cw + pw + euw;
+        const netPay = salary - totalW;
+
+        html += `
+          <tr>
+            <td style="font-weight:700;">${name}</td>
+            <td style="text-align:right; font-weight:600;">${salary.toLocaleString()}</td>
+            <td><div class="val-worker">${hw.toLocaleString()}</div><div class="val-employer">${hw.toLocaleString()}</div></td>
+            <td><div class="val-worker">${cw.toLocaleString()}</div><div class="val-employer">${cw.toLocaleString()}</div></td>
+            <td><div class="val-worker">${isOver60 ? '면제' : pw.toLocaleString()}</div><div class="val-employer">${isOver60 ? '면제' : pw.toLocaleString()}</div></td>
+            <td><div class="val-worker">${euw.toLocaleString()}</div><div class="val-employer">${euw.toLocaleString()}</div></td>
+            <td><div class="val-none">-</div><div class="val-employer">${eje.toLocaleString()}</div></td>
+            <td><div class="val-none">-</div><div class="val-employer">${se.toLocaleString()}</div></td>
+            <td style="font-weight:700; color:var(--red-main);">${netPay.toLocaleString()}</td>
+          </tr>`;
+      });
+      
+      tbody.innerHTML = html;
+      const resultArea = document.getElementById('excelResultArea');
+      resultArea.style.display = 'block';
+      resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function resetExcel() {
+      document.getElementById('fileUpload').value = '';
+      document.getElementById('excelTableBody').innerHTML = '';
+      document.getElementById('excelResultArea').style.display = 'none';
+      alert('엑셀 계산 결과가 초기화되었습니다.');
+    }
+
+    // 초기화 (이전 저장된 요율 세팅)
+    window.onload = function() {
+      syncSanjaeAllTabs();
+    };
+  </script>
+</body>
+</html>
